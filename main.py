@@ -8,16 +8,27 @@ Typical usage:
         $ python main.py
 """
 
+import sys
 from utils.classes.currency_converter import CurrencyExchangeConverter
 
 
 def main():
-    """Start the program and executes the application logic flow"""
+    """Bootstraps application configurations and runs the main visual framework lifecycle loop."""
 
-    # Create an instance of converter class
-    app = CurrencyExchangeConverter()
-    app.run()
-    app.mainloop()
+    try:
+        # Instantiates the primary workspace controller window
+        app = CurrencyExchangeConverter()
+
+        # Executes background workers and establishes widget keyboard/mouse listeners
+        app.run()
+
+    except Exception as initialization_error:
+        print(
+            f"Critical Error: Failed to bootstrap application lifecycle: {initialization_error}",
+            file=sys.stderr,
+        )
+
+        sys.exit(1)
 
 
 if __name__ == "__main__":

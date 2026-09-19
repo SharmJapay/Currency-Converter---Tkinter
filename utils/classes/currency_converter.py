@@ -1,83 +1,99 @@
 """Currency Exchange Converter Application.
 
-This module contains the main class for a graphical currency conversion program.
-It allows users to convert amounts between different global currencies using
-real-time or static exchange rates.
+This module contains the main class for a graphical currency conversion program
+built on Tkinter. It allows users to convert amounts between different global
+currencies using real-time API integrations or localized cache fallbacks.
 
-Attributes:
-    loading (bool): Track active background network tasks.
-    debounce_id (int): Variable container tracker for debouncing text strokes
-    api_url (str): The link for the currency exchange rate server.
-    status_indicator_dot (str): The indicator light for API connection status
-    status_indicator_text (str): The text that states the API Connection status
-    from_rate_combo (list): The list of currencies codes
-    to_rate_combo (list): The list of currencie codes
-    spinner_label (str): The loading text while conversion takes place
-    amount_entry (str): The numerical amount value
-    result_label (str): The result text from the conversion
-
-Methods:
-    setup_window() -> None       : Configures the window settings of the application in the center of screen.
-    setup_style() -> None        : Configures the style properties of window and widgets.
-    setup_api() -> None          : Configures the API key and url of currency exchange rate server.
-    load_rates_cache() -> list   : Loads cached rates data safely to extract currency code lists.
-    load_saved_state() -> dict   : Loads persistent storage details configurations safely.
-    save_current_state() -> None : Serializes target workspace properties on execution modifications.
-    build_gui() -> None          : Creates the layout design of the user interface.
-    run() -> None                : Starts the application interface.
-    initialize_currency_data() -> None : Asynchronously fetches initial list of currencies and validates server status.
-    get_currencies() -> list | None    : Fetches or updates the latest currency exchange rates.
-    validate_numeric_input() -> bool   : Character-level input mask checking routine.
-    check_key(event) -> None     : Filters exchange rate codes every time a key is released.
-    swap_currencies() -> None    : Interchanges combobox selected indices layout values cleanly.
-    animate_spinner() -> None   : Animates a looping sequence of text frame indicators while thread is processing.
-    trigger_debounced_conversion(event=None) -> None : Implements a 300ms delay timer execution intercept cascade.
-    trigger_immediate_conversion(event=None) -> None : Spawns network task inside a worker thread to protect typing flow fluidity.
-    async_convert(src, dest, amount) -> None : Handles HTTP requesting workflows and live graphical state loops.
-    manual_reconnect(event=None) -> None : Triggers a manual background reconnection sequence when clicking the status bar.
-    silent_background_retry() -> None: Quietly attempts to re-verify the API status every 60 seconds if offline.
+Constants:
+    DARK_THEME (str): Built-in Tkinter style theme used for basic customization.
+    DARK_BG (str): Hex color code for the main window background.
+    SURFACE_BG (str): Hex color code for frame containers.
+    TEXT_FG (str): Hex color code for text labels.
+    ACCENT_COLOR (str): Hex color code for standard interaction highlights.
+    DEEP_ACCENT_COLOR (str): Hex color code for active button states.
+    COLOR_SUCCESS (str): Hex color code representing a healthy API status.
+    COLOR_DANGER (str): Hex color code representing a network connection error.
+    COLOR_IDLE (str): Hex color code representing disconnected or fallback cache operations.
 """
 
 import os
-import sys
 import json
 import threading
-import time
 
 from tkinter import *
-from tkinter import messagebox
 import tkinter.ttk as ttk
 
 import requests
-from dotenv import load_dotenv
+
+from utils.classes.config_manager import ConfigManager
+from utils.classes.settings_dialog import SettingsDialog
 
 
 class CurrencyExchangeConverter(Tk):
-    """A created currency exchange converter class"""
+    """A Tkinter-based graphical interface for currency exchange calculations.
+
+    Handles real-time data fetching, thread separation for background web
+    requests, interface state caching, and localized rate arithmetic cross-multiplication
+    when operating offline.
+
+    Attributes:
+        loading (bool): Tracks active background network or processing tasks.
+        debounce_id (str or None): Tkinter 'after' registration token tracking keystroke delay timers.
+        config_manager (class):
+        state_cache_file(str):
+        rates_cache_file(str):
+        image_cache_file(str):
+        api_url (str or None): Complete REST endpoint URL utilizing the loaded API credential.
+        logo (PhotoImage): Image asset container housing the application banner graphic.
+        status_indicator_dot (Label): Graphical dot widget reflecting API and network connectivity health.
+        status_indicator_text (Label): Contextual status string describing connection states.
+        from_rate_combo (Combobox): Selection dropdown housing source currency identifiers.
+        to_rate_combo (Combobox): Selection dropdown housing destination currency identifiers.
+        spinner_label (Label): Interactive tracking spinner shown during pending worker threads.
+        amount_entry (Entry): Numeric input text field mapping target exchange rates.
+        result_label (Label): Calculated conversion readout displayed at the foot of the layout.
+
+
+    Methods:
+        setup_window() -> None          : Configures the window settings of the application in the center of screen.
+        setup_style() -> None           : Configures individual styling, color mappings, active states, and custom listbox options.
+        setup_config_manager() -> None  : Initializes and anchors target config instances mapping state files layout scopes.
+        setup_api() -> None             : Configures the API key and url dynamically from local user files.
+        load_saved_rates() -> list      : Loads cached rates data safely to extract currency code lists.
+        load_saved_state() -> dict      : Loads persistent storage details configurations safely.
+        save_current_state() -> None    : Serializes target workspace properties on execution modifications into a local JSON cache.
+        open_settings_panel() -> None   : Launches the modally configured user credential authorization view panel.
+        build_gui() -> None             : Creates the layout design of the user interface and registers layout containers.
+        run() -> None                   : Starts the application interface, spawns worker data routines.
+        bind_widgets() -> None          : Registers mouse/keyboard hooks.
+        initialize_currency_data() -> None : Asynchronously fetches initial list of currencies and validates server status.
+        get_currencies() -> list | None    : Fetches or updates the latest currency exchange rates from the API.
+        validate_numeric_input() -> bool   : Character-level input mask validation checking routine.
+        check_key(event) -> None        : Filters exchange rate codes every time an autocomplete alphanumeric key is released.
+        swap_currencies() -> None       : Interchanges combobox selected indices layout values cleanly and hits an immediate refresh.
+        animate_spinner() -> None       : Animates a looping sequence of text frame indicators while thread is processing.
+        trigger_debounced_conversion(event=None) -> None : Implements a 300ms delay timer execution intercept cascade to minimize rapid-fire API hits.
+        trigger_immediate_conversion(event=None) -> None : Spawns network task inside a worker thread to protect typing flow fluidity, validating fields first.
+        async_convert(src, dest, amount) -> None : Handles HTTP requesting workflows and live graphical state loops, falling back to local files if offline.
+        manual_reconnect(event=None) -> None     : Triggers a manual background reconnection sequence when clicking the status bar.
+        silent_background_retry() -> None        : Quietly attempts to re-verify the API status every 60 seconds if currently marked offline.
+    """
+
+    # Define theme constant
+    DARK_THEME = "clam"
 
     # Define color palette (dark mode) constants
-    DARK_BG = "#1e1e1e"  # Main background
-    SURFACE_BG = "#2d2d2d"  # Secondary background
-    TEXT_FG = "#ffffff"  # Primary text color
-    ACCENT_COLOR = "#007acc"  # Highlight color
-    DEEP_ACCENT_COLOR = "#005999"  # Deep Highlight color
-    COLOR_SUCCESS = "#2ea44f"  # Green status light
-    COLOR_DANGER = "#cb2431"  # Red status light
-    COLOR_IDLE = "#888888"  # Gray status light
-
-    # State cache configuration path
-    # __file__ is at: utils/classes/currency_converter.py
-    # Going up exactly two folder levels targets the workspace root containing main.py
-    BASE_DIR = os.path.dirname(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    )
-
-    # Build explicit absolute paths referencing the utils subdirectory cleanly
-    CONFIG_FILE = os.path.join(BASE_DIR, "utils", "config.json")
-    RATES_CACHE_FILE = os.path.join(BASE_DIR, "utils", "rates_cache.json")
+    DARK_BG = "#1e1e1e"
+    SURFACE_BG = "#2d2d2d"
+    TEXT_FG = "#ffffff"
+    ACCENT_COLOR = "#007acc"
+    DEEP_ACCENT_COLOR = "#005999"
+    COLOR_SUCCESS = "#2ea44f"
+    COLOR_DANGER = "#cb2431"
+    COLOR_IDLE = "#888888"
 
     def __init__(self) -> None:
-        """Starts the initialization of the class."""
+        """Starts the initialization of the class, bootstrapping themes, states, and layouts."""
 
         # Call the Tk init function
         super().__init__()
@@ -87,6 +103,9 @@ class CurrencyExchangeConverter(Tk):
 
         # Setup the customized stylesheet theme engine
         self.setup_style()
+
+        # Setup the configuration manager
+        self.setup_config_manager()
 
         # Load environment credentials and API endpoints
         self.setup_api()
@@ -119,12 +138,10 @@ class CurrencyExchangeConverter(Tk):
         self.configure(bg=self.DARK_BG)
 
     def setup_style(self) -> None:
-        """Configures the style properties of window and widgets."""
+        """Configures individual styling, color mappings, active states, and custom listbox options."""
 
         style = ttk.Style()
-
-        # Use theme 'clam' or 'alt' — these built-in themes allow deep color customization
-        style.theme_use("clam")
+        style.theme_use(self.DARK_THEME)
 
         # Configure default style properties for standard widget classes
         style.configure(
@@ -193,37 +210,39 @@ class CurrencyExchangeConverter(Tk):
         self.option_add("*TCombobox*Listbox*Foreground", self.TEXT_FG)
         self.option_add("*TCombobox*Listbox*selectBackground", self.ACCENT_COLOR)
 
+    def setup_config_manager(self) -> None:
+        """Initializes and anchors target config instances mapping state files layout scopes."""
+
+        self.config_manager = ConfigManager()
+
+        # Bind explicit tracking properties
+        self.state_cache_file = self.config_manager.state_cache_file
+        self.rates_cache_file = self.config_manager.rates_cache_file
+        self.image_file = self.config_manager.image_file
+
     def setup_api(self) -> None:
-        """Configures the API key and url of currency exchange rate server."""
+        """Configures the API key and url dynamically from local user files."""
 
-        # Natively reads `.env` out from the root project folder directory where main.py sits
-        load_dotenv()
+        api_key = self.config_manager.load_api_key()
 
-        api_key = os.getenv("API_KEY")
+        self.api_url = (
+            f"https://v6.exchangerate-api.com/v6/{api_key}/" if api_key else None
+        )
 
-        if api_key is None:
-            messagebox.showerror(
-                "API Key Error", "API_KEY environment variable is not set."
-            )
-            sys.exit(1)
-
-        self.api_url = f"https://v6.exchangerate-api.com/v6/{api_key}/"
-
-    def load_rates_cache(self) -> list:
+    def load_saved_rates(self) -> list:
         """Loads cached rates data safely to extract currency code lists.
 
         Returns
-            (list): The cached currency code string identifiers
+            list: The cached currency code string identifiers, or hardcoded defaults if missing.
         """
 
         defaults = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "PHP"]
 
-        if os.path.exists(self.RATES_CACHE_FILE):
+        if os.path.exists(self.rates_cache_file):
             try:
-                with open(self.RATES_CACHE_FILE, "r", encoding="utf-8") as f:
+                with open(self.rates_cache_file, "r", encoding="utf-8") as f:
                     cached_data = json.load(f)
 
-                    # Verify we got a valid dictionary before extracting keys
                     if isinstance(cached_data, dict):
                         return list(cached_data.keys())
 
@@ -236,15 +255,15 @@ class CurrencyExchangeConverter(Tk):
         """Loads persistent storage details configurations safely.
 
         Returns
-            (dict): The state configuration data loaded
+            dict: The workspace state dictionary mapping source, target, and transaction text.
         """
 
         defaults = {"from": "USD", "to": "EUR", "amount": "1.00"}
 
-        if os.path.exists(self.CONFIG_FILE):
+        if os.path.exists(self.state_cache_file):
 
             try:
-                with open(self.CONFIG_FILE, "r", encoding="utf-8") as f:
+                with open(self.state_cache_file, "r", encoding="utf-8") as f:
                     return json.load(f)
 
             except Exception:
@@ -253,7 +272,7 @@ class CurrencyExchangeConverter(Tk):
         return defaults
 
     def save_current_state(self) -> None:
-        """Serializes target workspace properties on execution modifications."""
+        """Serializes target workspace properties on execution modifications into a local JSON cache."""
 
         state = {
             "from": self.from_rate_combo.get(),
@@ -262,24 +281,61 @@ class CurrencyExchangeConverter(Tk):
         }
 
         try:
-            with open(self.CONFIG_FILE, "w", encoding="utf-8") as f:
+            with open(self.state_cache_file, "w", encoding="utf-8") as f:
                 json.dump(state, f, indent=4)
 
         except Exception:
             pass
 
+    def open_settings_panel(self) -> None:
+        """Launches the modally configured user credential authorization view panel."""
+
+        # Create settings dialog window
+        dialog = SettingsDialog(
+            self,
+            self.DARK_THEME,
+            self.DARK_BG,
+            self.SURFACE_BG,
+            self.TEXT_FG,
+            self.ACCENT_COLOR,
+            self.DEEP_ACCENT_COLOR,
+        )
+
+        # Wait for the user to close the settings menu, then refresh everything
+        self.wait_window(dialog)
+
+        # Re-read the saved configuration profiles instantly
+        self.setup_api()
+
+        # Safely spin up a fresh authentication sequence to confirm connection health
+        threading.Thread(target=self.initialize_currency_data, daemon=True).start()
+
     def build_gui(self) -> None:
-        """Creates the layout design of the user interface."""
+        """Creates the layout design of the user interface and registers layout containers."""
+
+        # Create Top Header Actions Frame
+        header_actions_frame = Frame(self, bg=self.DARK_BG)
+        header_actions_frame.pack(fill=X, padx=20, pady=(15, 0))
+
+        # Create Settings Button
+        settings_gear_button = ttk.Button(
+            header_actions_frame,
+            text="⚙ Settings",
+            width=3,
+            cursor="hand2",
+            command=self.open_settings_panel,
+        )
+        settings_gear_button.pack(side=RIGHT)
 
         # Create App Logo using Label
         try:
-            self.logo = PhotoImage(file="images/logo.png")
+            self.logo = PhotoImage(file=self.image_file)
             Label(self, image=self.logo, bg=self.DARK_BG).pack(padx=20, pady=(30, 0))
 
         except Exception:
             pass
 
-        # Create Label for App Name
+        # Create App Title Label
         app_title = ttk.Label(
             self, text="Currency Exchange Converter (SJ)", style="h1.TLabel"
         )
@@ -289,7 +345,7 @@ class CurrencyExchangeConverter(Tk):
         status_indicator_frame = Frame(self, bg=self.DARK_BG)
         status_indicator_frame.pack(fill=X, padx=40, pady=(0, 10))
 
-        # Create Labels for Status Indicator Dot and Status Indicator Text
+        # Create Status Indicator Dot and Status Indicator Text Labels
         self.status_indicator_dot = Label(
             status_indicator_frame,
             text="●",
@@ -314,24 +370,30 @@ class CurrencyExchangeConverter(Tk):
         main_frame = ttk.Frame(self, padding=20)
         main_frame.pack()
 
-        # Create Labels and Combobox for From and To Rates
+        # Create From Rate and To Rate Labels
         from_rate_label = ttk.Label(main_frame, text="From:", style="h4.TLabel")
         from_rate_label.grid(row=0, column=0, padx=5, pady=5, sticky=W)
 
         to_rate_label = ttk.Label(main_frame, text="To:", style="h4.TLabel")
         to_rate_label.grid(row=0, column=2, padx=5, pady=5, sticky=W)
 
+        # Create From Rate Combobox
         self.from_rate_combo = ttk.Combobox(
             main_frame, style="Custom.TCombobox", width=12, font=("Arial", 11, "bold")
         )
         self.from_rate_combo.grid(row=1, column=0, padx=5, pady=5)
 
-        # Create Button for Swap Layout
+        # Create Swap Layout Button
         swap_rates = ttk.Button(
-            main_frame, text="⇄", width=3, command=self.swap_currencies
+            main_frame,
+            text="⇄",
+            width=3,
+            cursor="hand2",
+            command=self.swap_currencies,
         )
         swap_rates.grid(row=1, column=1, padx=2, pady=5)
 
+        # Create To Rate Combobox
         self.to_rate_combo = ttk.Combobox(
             main_frame, style="Custom.TCombobox", width=12, font=("Arial", 11, "bold")
         )
@@ -347,7 +409,7 @@ class CurrencyExchangeConverter(Tk):
         )
         self.spinner_label.grid(row=2, column=2, padx=5, pady=5, sticky=E)
 
-        # Create Label and Entry for Amount
+        # Create Amount Label
         amount_label = ttk.Label(main_frame, text="Amount:", style="h4.TLabel")
         amount_label.grid(row=2, column=0, padx=5, pady=5, sticky=W)
 
@@ -357,7 +419,7 @@ class CurrencyExchangeConverter(Tk):
         # Set up Real-Time Input Verification Hooks
         vcmd = (self.register(self.validate_numeric_input), "%P")
 
-        # Attached the validate and validatecommand attributes
+        # Create Amount Entry and attach the validate and validatecommand attributes
         self.amount_entry = ttk.Entry(
             main_frame, validate="key", validatecommand=vcmd, font=("Arial", 11, "bold")
         )
@@ -366,17 +428,26 @@ class CurrencyExchangeConverter(Tk):
             row=3, column=0, columnspan=3, padx=5, pady=5, sticky=W + E
         )
 
-        # Create Label for Result
+        # Create Result Label
         self.result_label = ttk.Label(
             self, text="0.00 USD = 0.00 USD", font=("Arial", 20, "bold")
         )
         self.result_label.pack(padx=20, pady=20)
 
     def run(self) -> None:
-        """Starts the application interface."""
+        """Starts the application interface, spawns worker data routines."""
 
         # Asynchronously fetch currency codes without blocking startup
         threading.Thread(target=self.initialize_currency_data, daemon=True).start()
+
+        self.bind_widgets()
+
+        # Initialize the automatic re-polling reconnection manager loop
+        self.after(60000, self.silent_background_retry)
+        self.mainloop()
+
+    def bind_widgets(self) -> None:
+        """Registers mouse/keyboard hooks."""
 
         # Bind Mouse Triggers
         self.status_indicator_dot.bind("<Button-1>", self.manual_reconnect)
@@ -413,24 +484,47 @@ class CurrencyExchangeConverter(Tk):
 
         self.amount_entry.bind("<KeyRelease>", self.trigger_debounced_conversion)
 
-        # Initialize the automatic re-polling reconnection manager loop
-        self.after(60000, self.silent_background_retry)
-
     def initialize_currency_data(self) -> None:
         """Asynchronously fetches initial list of currencies and validates server status."""
 
-        # Initialized Data Sources (Currency codes and Exchange rate)
-        currencies = self.get_currencies()
-        fallback = self.load_rates_cache()
+        # Initialize fallback cache data source
+        fallback = self.load_saved_rates()
 
-        # Set fetched currencies as values for Comboboxes
+        # Set fallback if the user has not established credentials yet
+        if not self.api_url:
+            self.after(
+                0, lambda: self.status_indicator_dot.config(fg=self.COLOR_DANGER)
+            )
+            self.after(
+                0,
+                lambda: self.status_indicator_text.config(
+                    text="Missing API Key. Click 'Settings' to configure.",
+                    fg=self.COLOR_DANGER,
+                ),
+            )
+            self.after(0, lambda: self.result_label.config(text="API Key Required"))
+
+            self.from_rate_combo.all_options = fallback
+            self.to_rate_combo.all_options = fallback
+
+            self.after(0, lambda: self.from_rate_combo.config(values=fallback))
+            self.after(0, lambda: self.to_rate_combo.config(values=fallback))
+
+            return
+
+        # Fetch currency codes and exchange rate data source
+        currencies = self.get_currencies()
+
+        # Set values for Comboboxes
         options = currencies if currencies else fallback
 
+        # Cache option lists locally on the reference arrays
         self.from_rate_combo.all_options = options
         self.to_rate_combo.all_options = options
 
-        self.from_rate_combo["values"] = options
-        self.to_rate_combo["values"] = options
+        # Safely offload widget mutations back onto the primary UI loop thread
+        self.after(0, lambda: self.from_rate_combo.config(values=options))
+        self.after(0, lambda: self.to_rate_combo.config(values=options))
 
         # Map positions matching cached state targets safely
         saved_state = self.load_saved_state()
@@ -449,42 +543,54 @@ class CurrencyExchangeConverter(Tk):
             "API Server Connected" if currencies else "API Server Offline"
         )
 
-        self.status_indicator_dot.config(fg=status_color)
-        self.status_indicator_text.config(
-            text=status_indicator_text_string, fg=status_color
+        self.after(0, lambda: self.status_indicator_dot.config(fg=status_color))
+        self.after(
+            0,
+            lambda: self.status_indicator_text.config(
+                text=status_indicator_text_string, fg=status_color
+            ),
         )
 
-        self.trigger_immediate_conversion()
+        self.after(0, self.trigger_immediate_conversion)
 
     def get_currencies(self) -> list | None:
-        """Fetches or updates the latest currency exchange rates.
+        """Fetches or updates the latest currency exchange rates from the API.
 
         Returns
-            (list | None): The fetched currency code string identifiers from api server
+            list or None: A list of code strings from the API, or None if connection fails.
         """
+
+        # Do not proceed with request if the user has not established credentials yet
+        if not self.api_url:
+            return
 
         # Request currency codes and exchange rates from the server
         try:
-            response = requests.get(f"{self.api_url}/latest/USD", timeout=5).json()
+            response_raw = requests.get(f"{self.api_url}/latest/USD", timeout=5)
 
-            if response.get("result") == "success":
+            # Ensure server successfully answers before attempting to run JSON decoding layers
+            if response_raw.status_code == 200:
+                response = response_raw.json()
 
-                # Save data snapshot to maintain an offline baseline configuration
-                with open(self.RATES_CACHE_FILE, "w", encoding="utf-8") as f:
-                    json.dump(response.get("conversion_rates", {}), f, indent=4)
+                if response.get("result") == "success":
 
-                return list(response["conversion_rates"])
+                    # Save data snapshot to maintain an offline baseline configuration
+                    with open(self.rates_cache_file, "w", encoding="utf-8") as f:
+                        json.dump(response.get("conversion_rates", {}), f, indent=4)
+
+                    return list(response["conversion_rates"])
 
         except Exception:
             pass
 
-        return None
-
     def validate_numeric_input(self, proposed_text: str) -> bool:
-        """Character-level input mask checking routine.
+        """Character-level input mask validation checking routine.
+
+        Args
+            proposed_text (str): Proposed content value variant currently inside the entry field.
 
         Returns
-            (bool): True if layout modifications pass rule evaluations
+            bool: True if layout modifications pass rule evaluations, False to reject input.
         """
 
         # Allow clearing out the box entirely while typing
@@ -504,8 +610,13 @@ class CurrencyExchangeConverter(Tk):
             return False
 
     def check_key(self, event) -> None:
-        """Filters exchange rate codes every time a key is released."""
+        """Filters exchange rate codes every time an autocomplete alphanumeric key is released.
 
+        Args
+            event (Event): The Tkinter window keystroke layout tracker instance.
+        """
+
+        # Prevent key filtering for selected special keys
         if event.keysym in (
             "BackSpace",
             "Delete",
@@ -543,17 +654,18 @@ class CurrencyExchangeConverter(Tk):
 
         # Automatically drops open the menu visuals without stealing text field typing focus
         if data:
-            current_cursor_position = combobox.index(INSERT)
+            current_cursor_position = combobox.index("insert")
             combobox.event_generate("<Down>")
             combobox.focus_set()
             combobox.icursor(current_cursor_position)
 
     def swap_currencies(self) -> None:
-        """Interchanges combobox selected indices layout values cleanly."""
+        """Interchanges combobox selected indices layout values cleanly and hits an immediate refresh."""
 
         src = self.from_rate_combo.get()
         dest = self.to_rate_combo.get()
 
+        # Assign src and dest to 'to rate' and 'from rate' respectively to switch values
         self.from_rate_combo.set(dest)
         self.to_rate_combo.set(src)
 
@@ -565,15 +677,34 @@ class CurrencyExchangeConverter(Tk):
         spinner_chars = ["|", "/", "-", "\\"]
         idx = 0
 
-        while self.loading:
-            self.spinner_label.config(text=f"Fetching {spinner_chars[idx]}")
-            idx = (idx + 1) % len(spinner_chars)
-            time.sleep(0.1)
+        def step_animation() -> None:
+            """Run a safe visual loop that schedules itself on the main loop"""
 
-        self.spinner_label.config(text="")
+            # Read loading flag safely. Widget mutation is decoupled here.
+            if self.loading:
+                nonlocal idx
+
+                char = spinner_chars[idx]
+                self.spinner_label.config(text=f"Fetching {char}")
+
+                idx = (idx + 1) % len(spinner_chars)
+
+                # Schedule next frame 100ms in the future on the MAIN thread
+                self.after(100, step_animation)
+
+            else:
+                self.spinner_label.config(text="")
+
+        # Trigger the first frame animation step on the main thread
+        self.after(0, step_animation)
 
     def trigger_debounced_conversion(self, event=None) -> None:
-        """Implements a 300ms delay timer execution intercept cascade."""
+        """Implements a 300ms delay timer execution intercept cascade to minimize rapid-fire API hits.
+
+        Args
+            event (Event, optional): The Tkinter window layout keystroke tracker instance. Defaults to None.
+        """
+
         if self.debounce_id:
             self.after_cancel(self.debounce_id)
 
@@ -581,14 +712,33 @@ class CurrencyExchangeConverter(Tk):
         self.debounce_id = self.after(300, self.trigger_immediate_conversion)
 
     def trigger_immediate_conversion(self, event=None) -> None:
-        """Spawns network task inside a worker thread to protect typing flow fluidity."""
+        """Spawns network task inside a worker thread to protect typing flow fluidity, validating fields first.
 
-        src = self.from_rate_combo.get()
-        dest = self.to_rate_combo.get()
+        Args
+            event (Event, optional): The Tkinter combobox selection indicator link object. Defaults to None.
+        """
+
+        # Intercept layout input updates if an active background network thread is already running
+        if self.loading:
+            return
+
+        # Suspends the currency conversion if the user has not established credentials yet
+        if not self.api_url:
+            self.result_label.config(text="API Key Required")
+            return
+
+        src = self.from_rate_combo.get().strip().upper()
+        dest = self.to_rate_combo.get().strip().upper()
         amount = self.amount_entry.get()
 
+        # Prevent processing if dropdown arrays are completely empty
+        if not src or not dest:
+            self.result_label.config(text="Select Currencies")
+            return
+
         # Prevent error alerts if entry box is temporarily empty while typing
-        if not amount:
+        if not amount or amount.strip() == "":
+            self.result_label.config(text=f"0.00 {src} = 0.00 {dest}")
             return
 
         # Validation check to ensure amount is a number
@@ -615,18 +765,32 @@ class CurrencyExchangeConverter(Tk):
         ).start()
 
     def async_convert(self, src, dest, amount) -> None:
-        """Handles HTTP requesting workflows and live graphical state loops."""
+        """Handles HTTP requesting workflows and live graphical state loops, falling back to local files if offline.
+
+        Args
+            src (str): Origin currency string code.
+            dest (str): Target conversion currency string code.
+            amount (str): Raw target floating string amount."""
+
+        # Suspends the currency conversion if the user has not established credentials yet
+        if not self.api_url:
+            return
 
         self.loading = True
 
-        # Shift spinner animation to background thread
-        threading.Thread(target=self.animate_spinner, daemon=True).start()
+        self.animate_spinner()
 
         # Request conversion of exchange rate from the server
         try:
-            response = requests.get(
+            response_raw = requests.get(
                 f"{self.api_url}/pair/{src}/{dest}/{amount}", timeout=5
-            ).json()
+            )
+
+            # Raise exception if network drops or drops a captive portal HTML page
+            if response_raw.status_code != 200:
+                raise requests.exceptions.RequestException("Non-200 Server Response")
+
+            response = response_raw.json()
 
             # Verify parameters haven't changed while request was in flight
             if (
@@ -637,17 +801,39 @@ class CurrencyExchangeConverter(Tk):
 
                 if response.get("result") == "success":
                     result = response["conversion_result"]
-                    self.result_label.config(
-                        text=f"{float(amount):.2f} {src} = {float(result):.2f} {dest}"
+                    text_out = f"{float(amount):.2f} {src} = {float(result):.2f} {dest}"
+
+                    self.after(0, lambda: self.result_label.config(text=text_out))
+                    self.after(
+                        0,
+                        lambda: self.status_indicator_dot.config(fg=self.COLOR_SUCCESS),
+                    )
+                    self.after(
+                        0,
+                        lambda: self.status_indicator_text.config(
+                            text="API Server Connected", fg=self.COLOR_SUCCESS
+                        ),
                     )
 
-                    self.status_indicator_dot.config(fg=self.COLOR_SUCCESS)
-                    self.status_indicator_text.config(
-                        text="API Server Connected", fg=self.COLOR_SUCCESS
+                elif response.get("error-type") == "invalid-key":
+                    self.after(
+                        0, lambda: self.result_label.config(text="Invalid API Key")
                     )
-
+                    self.after(
+                        0,
+                        lambda: self.status_indicator_dot.config(fg=self.COLOR_DANGER),
+                    )
+                    self.after(
+                        0,
+                        lambda: self.status_indicator_text.config(
+                            text="Unauthorized API Token Connection",
+                            fg=self.COLOR_DANGER,
+                        ),
+                    )
                 else:
-                    self.result_label.config(text="Conversion Failed")
+                    self.after(
+                        0, lambda: self.result_label.config(text="Conversion Failed")
+                    )
 
         except Exception:
 
@@ -659,49 +845,76 @@ class CurrencyExchangeConverter(Tk):
                 and amount == self.amount_entry.get()
             ):
 
-                if os.path.exists(self.RATES_CACHE_FILE):
+                if os.path.exists(self.rates_cache_file):
 
                     try:
-                        with open(self.RATES_CACHE_FILE, "r", encoding="utf-8") as f:
+                        with open(self.rates_cache_file, "r", encoding="utf-8") as f:
                             cached_rates = json.load(f)
 
-                        if src in cached_rates and dest in cached_rates:
+                        if (
+                            isinstance(cached_rates, dict)
+                            and src in cached_rates
+                            and dest in cached_rates
+                        ):
 
                             # Calculate math using USD standard baselines cross multiplication
                             rate_to_usd = cached_rates[src]
                             dest_to_usd = cached_rates[dest]
 
+                            # Prevent arithmetic ZeroDivisionError drops
+                            if rate_to_usd == 0:
+                                raise ValueError("Base rate cannot be zero.")
+
                             calculated_result = (
                                 float(amount) / rate_to_usd
                             ) * dest_to_usd
+                            text_out = f"{float(amount):.2f} {src} = {calculated_result:.2f} {dest} (Cached)"
 
-                            self.result_label.config(
-                                text=f"{float(amount):.2f} {src} = {calculated_result:.2f} {dest} (Cached)"
+                            self.after(
+                                0, lambda: self.result_label.config(text=text_out)
                             )
-                            self.status_indicator_dot.config(fg=self.COLOR_IDLE)
-                            self.status_indicator_text.config(
-                                text="Offline Mode - Using Cached Rates",
-                                fg=self.COLOR_IDLE,
+                            self.after(
+                                0,
+                                lambda: self.status_indicator_dot.config(
+                                    fg=self.COLOR_IDLE
+                                ),
+                            )
+                            self.after(
+                                0,
+                                lambda: self.status_indicator_text.config(
+                                    text="Offline Mode - Using Cached Rates",
+                                    fg=self.COLOR_IDLE,
+                                ),
                             )
 
                             return
 
-                    except Exception:
-                        pass
+                    except Exception as fallback_error:
+                        # Create error logging for unsuccessful fallback parsing
+                        print(f"Fallback parsing exception: {fallback_error}")
 
                 # If no cache data exists, fallback to standard error alerts
-                self.result_label.config(text="Connection Error")
-                self.status_indicator_dot.config(fg=self.COLOR_DANGER)
-                self.status_indicator_text.config(
-                    text="API Server Offline", fg=self.COLOR_DANGER
+                self.after(0, lambda: self.result_label.config(text="Connection Error"))
+                self.after(
+                    0, lambda: self.status_indicator_dot.config(fg=self.COLOR_DANGER)
+                )
+                self.after(
+                    0,
+                    lambda: self.status_indicator_text.config(
+                        text="API Server Offline", fg=self.COLOR_DANGER
+                    ),
                 )
 
         finally:
-            # Safely turn off loading flag if no other background network requests are active
-            self.loading = False
+            # Safely clear loading state if no other background network requests are active
+            self.after(0, lambda: setattr(self, "loading", False))
 
     def manual_reconnect(self, event=None) -> None:
-        """Triggers a manual background reconnection sequence when clicking the status bar."""
+        """Triggers a manual background reconnection sequence when clicking the status bar.
+
+        Args
+            event (Event, optional): Mouse interaction tracker object. Defaults to None.
+        """
 
         # Prevent spam clicking if a request is currently active
         if self.loading:
@@ -714,16 +927,18 @@ class CurrencyExchangeConverter(Tk):
         )
         self.result_label.config(text="Reconnecting...")
 
-        # Run initialization data loop inside a background thread to prevent UI freezing
+        # Run initialization data loop inside a background thread
         threading.Thread(target=self.initialize_currency_data, daemon=True).start()
 
     def silent_background_retry(self) -> None:
-        """Quietly attempts to re-verify the API status every 60 seconds if offline."""
+        """Quietly attempts to re-verify the API status every 60 seconds if currently marked offline."""
 
         if not self.loading:
             current_status = self.status_indicator_text.cget("text")
 
             if "Offline" in current_status or "Using Cached" in current_status:
+
+                # Spin up another authentication sequence if status is offline
                 threading.Thread(
                     target=self.initialize_currency_data, daemon=True
                 ).start()
