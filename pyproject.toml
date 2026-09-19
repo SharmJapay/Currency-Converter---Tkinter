@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "currency-exchange-converter"
+version = "1.0.0"
+description = "A multi-threaded, offline-resilient desktop currency converter application using Tkinter."
+readme = "README.md"
+authors = [
+    { name = "SJ Development" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Office/Business :: Financial",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "requests==2.34.2",
+    "cryptography==50.0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "pyinstaller>=6.0.0",
+]
+
+[project.scripts]
+# Installs a global terminal command launcher named "currency-converter" pointing directly to your driver main module
+currency-converter = "main:main"
+
+[tool.setuptools]
+packages = ["utils", "utils.classes"]
+
+[tool.setuptools.package-data]
+# Ensures that when packaged, default static config assets or templates can be bundled inside utility directories if required
+"utils" = ["*.json", ".key"]

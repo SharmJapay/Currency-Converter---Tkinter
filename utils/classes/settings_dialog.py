@@ -77,7 +77,7 @@ class SettingsDialog(Toplevel):
         """Configures the subwindow settings of the application."""
 
         app_width = 400
-        app_height = 170
+        app_height = 200
 
         self.update_idletasks()
 
@@ -121,7 +121,7 @@ class SettingsDialog(Toplevel):
         )
 
         # Fine-tune individual widget elements
-        style.configure("TFrame", background=self.surface_bg)
+        style.configure("TFrame", background=self.dark_bg)
 
         style.configure(
             "title.TLabel",

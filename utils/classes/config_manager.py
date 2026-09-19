@@ -49,8 +49,11 @@ class ConfigManager:
             }
 
         else:
-            # Standard developer environment fallback setup structure
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            # Step up 3 levels to reach the absolute root project directory wrapper
+            # 1. classes/ -> 2. utils/ -> 3. Currency Exchange Conversion Project/
+            base_dir = os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            )
             utils_dir = os.path.join(base_dir, "utils")
 
             return {

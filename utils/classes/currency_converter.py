@@ -123,7 +123,7 @@ class CurrencyExchangeConverter(Tk):
         """Configures the window settings of the application in the center of screen."""
 
         app_width = 600
-        app_height = 550
+        app_height = 630
 
         # Calculate Starting X and Y coordinates for Window mapping center focus
         coor_x = (self.winfo_screenwidth() / 2) - (app_width / 2)
@@ -152,7 +152,7 @@ class CurrencyExchangeConverter(Tk):
         )
 
         # Fine-tune individual widget elements
-        style.configure("TFrame", background=self.SURFACE_BG)
+        style.configure("TFrame", background=self.DARK_BG)
 
         style.configure(
             "h1.TLabel",
@@ -163,7 +163,7 @@ class CurrencyExchangeConverter(Tk):
 
         style.configure(
             "h4.TLabel",
-            background=self.SURFACE_BG,
+            background=self.DARK_BG,
             foreground=self.TEXT_FG,
             font=("Arial", 12, "bold"),
         )
@@ -176,7 +176,7 @@ class CurrencyExchangeConverter(Tk):
             lightcolor=self.SURFACE_BG,
             darkcolor=self.SURFACE_BG,
             padding=6,
-            font=("Arial", 12, "bold"),
+            font=("Arial", 11, "bold"),
         )
 
         # Add a hover state for buttons using style.map
@@ -321,7 +321,6 @@ class CurrencyExchangeConverter(Tk):
         settings_gear_button = ttk.Button(
             header_actions_frame,
             text="⚙ Settings",
-            width=3,
             cursor="hand2",
             command=self.open_settings_panel,
         )
@@ -403,7 +402,7 @@ class CurrencyExchangeConverter(Tk):
         self.spinner_label = Label(
             main_frame,
             text="",
-            bg=self.SURFACE_BG,
+            bg=self.DARK_BG,
             fg=self.ACCENT_COLOR,
             font=("Arial", 11, "bold"),
         )
