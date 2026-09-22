@@ -39,10 +39,10 @@ class CurrencyExchangeConverter(Tk):
     Attributes:
         loading (bool): Tracks active background network or processing tasks.
         debounce_id (str or None): Tkinter 'after' registration token tracking keystroke delay timers.
-        config_manager (class):
-        state_cache_file(str):
-        rates_cache_file(str):
-        image_cache_file(str):
+        config_manager (ConfigManager): Configuration utility for file locations and API storage.
+        state_cache_file (str): Local path targeting application layout session saves.
+        rates_cache_file (str): Local path targeting fallback rate serialization data.
+        image_file (str): Local path pointing to the application brand logo image file.
         api_url (str or None): Complete REST endpoint URL utilizing the loaded API credential.
         logo (PhotoImage): Image asset container housing the application banner graphic.
         status_indicator_dot (Label): Graphical dot widget reflecting API and network connectivity health.
